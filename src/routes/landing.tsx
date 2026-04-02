@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { raw } from 'hono/html'
 import type { Bindings } from '../types'
 import { getActiveMembers } from '../data'
-import { CANADA_VIEWBOX, CANADA_PATH, projectToSvg } from '../lib/canada-map'
+import { CANADA_VIEWBOX, CANADA_OUTLINE_PATH, CANADA_REGION_PATHS, projectToSvg } from '../lib/canada-map'
 import Layout from '../templates/Layout'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -22,17 +22,11 @@ app.get('/', async (c) => {
           position: relative;
         }
 
-        /* ── Left column — single CSS grid ── */
+        /* ── Left column — flexbox ── */
         .landing-left {
           flex: 0 0 47%;
-          display: grid;
-          grid-template-rows:
-            auto          /* title */
-            auto 1fr      /* about header, about body (open) */
-            auto 0fr      /* members header, members body */
-            auto 0fr;     /* join header, join body */
-          transition: grid-template-rows 0.4s ease;
-          align-content: start;
+          display: flex;
+          flex-direction: column;
           position: relative;
           border-left: 2px solid var(--border-strong);
           border-right: 2px solid var(--border-strong);
@@ -58,9 +52,31 @@ app.get('/', async (c) => {
           display: inline-block;
           flex-shrink: 0;
         }
+        .landing-intro {
+          font-size: 1.05rem;
+          font-weight: 400;
+          line-height: 1.55;
+          color: var(--fg-muted);
+          padding: 0 2rem 1.2rem;
+          max-width: 42ch;
+        }
+        .member-count {
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: var(--fg-muted);
+          padding: 0.8rem 2rem 0.4rem;
+          border-top: 2px solid var(--border-strong);
+        }
+        .member-list-wrap {
+          flex: 1;
+          overflow-y: auto;
+          min-height: 0;
+        }
 
-        /* ── Accordion headers ── */
-        .accordion-header {
+        /* ── Join section collapsible ── */
+        .join-header {
           width: 100%;
           display: flex;
           justify-content: space-between;
@@ -71,49 +87,44 @@ app.get('/', async (c) => {
           border-top: 2px solid var(--border-strong);
           cursor: pointer;
           font-family: 'Inter', sans-serif;
-          font-size: 2.8rem;
+          font-size: 1.4rem;
           font-weight: 700;
           letter-spacing: -0.03em;
           color: var(--fg);
           text-align: left;
           line-height: 1.15;
         }
-        .accordion-toggle {
+        .join-toggle {
           flex-shrink: 0;
-          width: 36px;
-          height: 36px;
+          width: 30px;
+          height: 30px;
           border: 1.5px solid var(--border-strong);
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
         }
-        .accordion-toggle svg {
-          width: 16px;
-          height: 16px;
+        .join-toggle svg {
+          width: 14px;
+          height: 14px;
           stroke: var(--fg);
           stroke-width: 2;
           fill: none;
         }
-
-        /* ── Accordion bodies ── */
-        .accordion-body {
+        .join-body {
           overflow: hidden;
-          min-height: 0;
+          max-height: 0;
+          transition: max-height 0.3s ease;
         }
-        .accordion-body-inner {
+        .join-body.is-open {
+          max-height: 300px;
+        }
+        .join-body-inner {
           padding: 0 2rem 1.8rem;
-        }
-        .accordion-about {
-          font-size: 1.15rem;
-          font-weight: 400;
-          line-height: 1.55;
-          color: var(--fg);
-          max-width: 42ch;
         }
 
         /* ── Members list ── */
-        .member-list { list-style: none; padding-left: 0; }
+        .member-list { list-style: none; padding: 0 2rem; }
         .member-list li {
           padding: 0.6rem 0;
           border-bottom: 1px solid var(--border);
@@ -191,32 +202,73 @@ app.get('/', async (c) => {
           padding: 2rem;
           position: relative;
         }
+        .landing-map-stage {
+          width: min(100%, 640px);
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem 1rem;
+          isolation: isolate;
+        }
+        .landing-map-stage::before {
+          content: '';
+          position: absolute;
+          inset: 10% 6% 14%;
+          border-radius: 50%;
+          background:
+            radial-gradient(circle at 50% 45%,
+              color-mix(in srgb, var(--accent) 11%, transparent) 0%,
+              color-mix(in srgb, var(--accent) 6%, transparent) 28%,
+              transparent 68%);
+          opacity: 0.7;
+          filter: blur(28px);
+          z-index: 0;
+          pointer-events: none;
+        }
         .canada-map {
           width: 100%;
-          max-width: 600px;
           height: auto;
+          position: relative;
+          z-index: 1;
+        }
+        .canada-silhouette {
+          fill: color-mix(in srgb, var(--fg) 5%, var(--bg));
+          opacity: 0.96;
+        }
+        .canada-shadow {
+          fill: none;
+          stroke: color-mix(in srgb, var(--fg) 8%, transparent);
+          stroke-width: 7;
+          stroke-linejoin: round;
+          opacity: 0.28;
+          filter: blur(10px);
         }
         .canada-outline {
           fill: none;
-          stroke: var(--border);
-          stroke-width: 1.5;
+          stroke: color-mix(in srgb, var(--fg) 34%, var(--bg));
+          stroke-width: 1.25;
           stroke-linejoin: round;
+          vector-effect: non-scaling-stroke;
+        }
+        .canada-region {
+          fill: none;
+          stroke: color-mix(in srgb, var(--fg) 14%, var(--bg));
+          stroke-width: 0.75;
+          vector-effect: non-scaling-stroke;
+          opacity: 0.9;
         }
         .canada-dot {
           fill: var(--accent);
-          opacity: 0.85;
-          cursor: pointer;
+          stroke: var(--bg);
+          stroke-width: 3;
+          filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--accent) 24%, transparent));
+          opacity: 0.95;
           transition: transform 0.2s ease, opacity 0.2s ease;
-          transform-origin: center;
-          transform-box: fill-box;
-        }
-        .canada-dot:hover {
-          opacity: 1;
-          transform: scale(1.6);
         }
         .canada-dot.is-highlighted {
           opacity: 1;
-          transform: scale(1.6);
+          transform: scale(1.22);
         }
 
         /* ── Landing theme toggle ── */
@@ -246,76 +298,54 @@ app.get('/', async (c) => {
             border-left: none;
             border-right: none;
             border-bottom: 2px solid var(--border-strong);
-            /* all bodies collapsed on mobile by default, JS overrides */
-            grid-template-rows:
-              auto
-              auto 1fr
-              auto 0fr
-              auto 0fr !important;
           }
           .landing-title { font-size: 2.2rem; padding: 1.2rem 1.5rem; }
-          .accordion-header { font-size: 1.8rem; padding: 1rem 1.5rem; }
-          .accordion-body-inner { padding: 0 1.5rem 1.5rem; }
-          .accordion-toggle { width: 30px; height: 30px; }
-          .accordion-toggle svg { width: 14px; height: 14px; }
-          .landing-right {
-            flex: none;
-            min-height: 40vh;
-            padding: 1.5rem;
-          }
+          .landing-intro { padding: 0 1.5rem 1rem; font-size: 0.95rem; }
+          .member-count { padding: 0.6rem 1.5rem 0.3rem; }
+          .member-list { padding: 0 1.5rem; }
+          .member-list li { padding: 0.5rem 0; }
+          .member-list-meta-type { display: none; }
+          .join-header { font-size: 1.2rem; padding: 1rem 1.5rem; }
+          .join-body-inner { padding: 0 1.5rem 1.5rem; }
+          .landing-right { flex: none; min-height: 40vh; padding: 1.5rem; }
+          .landing-map-stage { width: 100%; padding: 1.25rem 0.25rem 1.75rem; }
           .landing-theme-toggle { top: 1.2rem; right: 1rem; width: 30px; height: 30px; }
           .landing-theme-toggle svg { width: 14px; height: 14px; }
         }
       </style>`)}
-      {raw(`<noscript><style>.landing-left { grid-template-rows: auto auto 1fr auto 1fr auto 1fr !important; } .accordion-toggle { display: none; }</style></noscript>`)}
+      {raw(`<noscript><style>.join-body { max-height: none !important; } .join-toggle { display: none; }</style></noscript>`)}
       <div class="landing">
         {raw(`<button class="landing-theme-toggle" onclick="__toggleTheme()" aria-label="Toggle theme"><svg class="theme-icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="theme-icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>`)}
         <div class="landing-left" id="landing-left">
           <a href="/" class="landing-title">webring.ca <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Canada_%28Pantone%29.svg" alt="Flag of Canada" class="landing-title-flag" /></a>
 
-          <button class="accordion-header" aria-expanded="true" aria-controls="accordion-about" data-index="0">
-            <span>About</span>
-            <span class="accordion-toggle" aria-hidden="true">
-              {raw('<svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8" /></svg>')}
-            </span>
-          </button>
-          <div class="accordion-body" id="accordion-about">
-            <div class="accordion-body-inner">
-              <p class="accordion-about">webring.ca is a curated community of Canadian builders, designers, and creators. We connect and showcase the diverse talent across Canada, fostering collaboration and innovation in the digital space.</p>
-            </div>
+          <p class="landing-intro">A curated community of Canadian builders, designers, and creators sharing their work on the open web.</p>
+
+          <div class="member-count">{active.length} Member{active.length !== 1 ? 's' : ''}</div>
+
+          <div class="member-list-wrap">
+            {active.length === 0 ? (
+              <p class="landing-intro">No members yet.</p>
+            ) : (
+              <ul class="member-list">
+                {active.map((m) => (
+                  <li data-member-slug={m.slug}>
+                    <a href={m.url} target="_blank" rel="noopener noreferrer" class="member-list-name">{m.name}</a>
+                    <span class="member-list-meta">{m.city ?? ''}{m.city ? ' \u00b7 ' : ''}<span class="member-list-meta-type">{m.type}</span></span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          <button class="accordion-header" aria-expanded="false" aria-controls="accordion-members" data-index="1">
-            <span>Members</span>
-            <span class="accordion-toggle" aria-hidden="true">
+          <button class="join-header" id="join-toggle" aria-expanded="false" aria-controls="join-body">
+            <span>Join the ring</span>
+            <span class="join-toggle" aria-hidden="true">
               {raw('<svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8" /><line x1="8" y1="3" x2="8" y2="13" /></svg>')}
             </span>
           </button>
-          <div class="accordion-body" id="accordion-members">
-            <div class="accordion-body-inner">
-              {active.length === 0 ? (
-                <p class="accordion-about">No members yet.</p>
-              ) : (
-                <ul class="member-list">
-                  {active.map((m) => (
-                    <li data-member-slug={m.slug}>
-                      <a href={m.url} target="_blank" rel="noopener noreferrer" class="member-list-name">{m.name}</a>
-                      <span class="member-list-meta">{m.city ?? ''}{m.city ? ' \u00b7 ' : ''}{m.type}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <button class="accordion-header" aria-expanded="false" aria-controls="accordion-join" data-index="2">
-            <span>Join</span>
-            <span class="accordion-toggle" aria-hidden="true">
-              {raw('<svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8" /><line x1="8" y1="3" x2="8" y2="13" /></svg>')}
-            </span>
-          </button>
-          <div class="accordion-body" id="accordion-join">
-            <div class="accordion-body-inner">
+          <div class="join-body" id="join-body">
+            <div class="join-body-inner">
               <p class="join-text">
                 <strong>{active.length} member{active.length !== 1 ? 's' : ''}</strong> across Canada.
                 Add your site to the ring and join a community of builders sharing their work on the open web.
@@ -334,68 +364,53 @@ app.get('/', async (c) => {
         </div>
 
         <div class="landing-right">
-          <svg
-            class="canada-map"
-            viewBox={CANADA_VIEWBOX}
-            xmlns="http://www.w3.org/2000/svg"
-            role="img"
-            aria-label={`Map of Canada showing ${active.filter(m => m.lat != null).length} member locations`}
-          >
-            <path d={CANADA_PATH} class="canada-outline" />
-            {active.map((m) => {
-              if (m.lat == null || m.lng == null) return null
-              const { x, y } = projectToSvg(m.lat, m.lng)
-              return (
-                <circle
-                  cx={x}
-                  cy={y}
-                  r="8"
-                  class="canada-dot"
-                  data-slug={m.slug}
-                >
-                  <title>{m.name}{m.city ? ` — ${m.city}` : ''}</title>
-                </circle>
-              )
-            })}
-          </svg>
+          <div class="landing-map-stage">
+            <svg
+              class="canada-map"
+              viewBox={CANADA_VIEWBOX}
+              xmlns="http://www.w3.org/2000/svg"
+              role="img"
+              aria-label={`Map of Canada showing ${active.filter(m => m.lat != null).length} member locations`}
+            >
+              <path d={CANADA_OUTLINE_PATH} class="canada-shadow" />
+              <path d={CANADA_OUTLINE_PATH} class="canada-silhouette" />
+              {CANADA_REGION_PATHS.map((region) => (
+                <path d={region.d} class="canada-region" data-region={region.id}>
+                  <title>{region.name}</title>
+                </path>
+              ))}
+              <path d={CANADA_OUTLINE_PATH} class="canada-outline" />
+              {active.map((m) => {
+                if (m.lat == null || m.lng == null) return null
+                const { x, y } = projectToSvg(m.lat, m.lng)
+                return (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="9"
+                    class="canada-dot"
+                    data-slug={m.slug}
+                  >
+                    <title>{m.name}{m.city ? ` — ${m.city}` : ''}</title>
+                  </circle>
+                )
+              })}
+            </svg>
+          </div>
         </div>
       </div>
       {raw(`<script>
 (function() {
+  // Join toggle
+  var joinBtn = document.getElementById('join-toggle');
+  var joinBody = document.getElementById('join-body');
   var MINUS = '<svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8" /></svg>';
   var PLUS = '<svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8" /><line x1="8" y1="3" x2="8" y2="13" /></svg>';
-  var state = [true, false, false];
-  var left = document.getElementById('landing-left');
-  var headers = left.querySelectorAll('.accordion-header');
 
-  function updateGrid() {
-    var rows = 'auto';
-    for (var i = 0; i < state.length; i++) {
-      rows += ' auto ' + (state[i] ? '1fr' : '0fr');
-    }
-    left.style.gridTemplateRows = rows;
-  }
-
-  headers.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var i = parseInt(btn.getAttribute('data-index'), 10);
-      var opening = !state[i];
-      if (opening) {
-        for (var j = 0; j < state.length; j++) {
-          if (j !== i && state[j]) {
-            state[j] = false;
-            var otherBtn = headers[j];
-            otherBtn.querySelector('.accordion-toggle').innerHTML = PLUS;
-            otherBtn.setAttribute('aria-expanded', 'false');
-          }
-        }
-      }
-      state[i] = opening;
-      var icon = btn.querySelector('.accordion-toggle');
-      icon.innerHTML = opening ? MINUS : PLUS;
-      btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-      updateGrid();
-    });
+  joinBtn.addEventListener('click', function() {
+    var isOpen = joinBody.classList.toggle('is-open');
+    joinBtn.querySelector('.join-toggle').innerHTML = isOpen ? MINUS : PLUS;
+    joinBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
   });
 
   // Cross-panel hover: member list ↔ map dots
