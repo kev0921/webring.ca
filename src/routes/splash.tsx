@@ -3,6 +3,7 @@ import { raw } from 'hono/html'
 import type { Bindings } from '../types'
 import { getActiveMembers } from '../data'
 import { CANADA_VIEWBOX, CANADA_OUTLINE_PATH, projectToSvg } from '../lib/canada-map'
+import { getMemberCoordinates } from '../utils/member-coords'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -151,12 +152,13 @@ app.get('/', async (c) => {
                 viewBox={CANADA_VIEWBOX}
                 xmlns="http://www.w3.org/2000/svg"
                 role="img"
-                aria-label={`Map of Canada showing ${active.filter(m => m.lat != null).length} member locations`}
+                aria-label={`Map of Canada showing ${active.filter(m => getMemberCoordinates(m) != null).length} member locations`}
               >
                 <path d={CANADA_OUTLINE_PATH} class="canada-outline" />
                 {active.map((m) => {
-                  if (m.lat == null || m.lng == null) return null
-                  const { x, y } = projectToSvg(m.lat, m.lng)
+                  const coords = getMemberCoordinates(m)
+                  if (!coords) return null
+                  const { x, y } = projectToSvg(coords.lat, coords.lng)
                   return (
                     <circle cx={x} cy={y} r="8" class="canada-dot">
                       <title>{m.name}{m.city ? ` — ${m.city}` : ''}</title>
@@ -170,7 +172,7 @@ app.get('/', async (c) => {
               <div class="hero-bottom">
                 <div class="hero-bottom-inner">
                   <h2 class="poster-text hero-bottom-text"><span class="flag-red">CA</span><span class="flag-white-outline">NA</span><span class="flag-red">DA</span></h2>
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Canada_%28Pantone%29.svg" alt="Flag of Canada" class="canada-flag" />
+                  <img src="/canada-flag.svg" alt="Flag of Canada" class="canada-flag" />
                 </div>
               </div>
             </footer>
