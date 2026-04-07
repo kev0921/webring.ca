@@ -1,5 +1,12 @@
 [
   {
+    "slug": "timothy-khan",
+    "name": "Timothy Khan",
+    "url": "https://timothyk.dev",
+    "city": "Toronto",
+    "active": true
+  },
+  {
     "slug": "stanley",
     "name": "Stanley Pang",
     "url": "https://stanleyp.dev",
