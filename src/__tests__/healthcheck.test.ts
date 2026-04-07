@@ -440,9 +440,11 @@ describe('runHealthCheck', () => {
       members: JSON.stringify([alice]),
       'health:alice': JSON.stringify(prevStatus),
     })
-    mockFetch({ 'https://alice.example.com': 'error' })
-
     const webhookUrl = 'https://discord.com/api/webhooks/test'
+    mockFetch({
+      'https://alice.example.com': 'error',
+      [webhookUrl]: { ok: true, status: 200, body: '' },
+    })
     await runHealthCheck(kv, webhookUrl)
 
     const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
@@ -455,11 +457,12 @@ describe('runHealthCheck', () => {
   it('sends Discord notification on reactivation', async () => {
     const inactiveAlice = { ...alice, active: false }
     const kv = createMockKV({ members: JSON.stringify([inactiveAlice]) })
+    const webhookUrl = 'https://discord.com/api/webhooks/test'
     mockFetch({
       'https://alice.example.com': { ok: true, status: 200, body: VALID_WIDGET },
+      [webhookUrl]: { ok: true, status: 200, body: '' },
     })
 
-    const webhookUrl = 'https://discord.com/api/webhooks/test'
     await runHealthCheck(kv, webhookUrl)
 
     const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
