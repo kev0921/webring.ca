@@ -14,10 +14,17 @@
     "active": true
   },
   {
-  "slug": "wafee-rahman",
-  "name": "Wafee Rahman",
-  "url": "https://www.wafee.net/",
-  "city": "Toronto",
-  "active": true
+    "slug": "wafee-rahman",
+    "name": "Wafee Rahman",
+    "url": "https://www.wafee.net/",
+    "city": "Toronto",
+    "active": true
+  },
+  {
+    "slug": "utcjcao",
+    "name": "Chris Cao",
+    "url": "https://utcjcao.github.io",
+    "city": "Toronto",
+    "active": true
   }
 ]
